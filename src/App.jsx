@@ -802,6 +802,8 @@ export default function FarewellApp() {
                         <option value="All">Program: All</option>
                         <option value="BTech">BTech</option>
                         <option value="BCA">BCA</option>
+                        <option value="MCA">MCA</option>
+                        <option value="Diploma">Diploma</option>
                       </select>
                       <select name="year" value={filters.year} onChange={onFilterChange}>
                         <option value="All">Year: All</option>
@@ -848,7 +850,7 @@ export default function FarewellApp() {
                    <div style={{marginBottom:20}}><label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:10}}>ROLL NUMBER</label><input name="roll_no" placeholder="Ex: 24201" value={addForm.roll_no} onChange={onAddFormChange}/></div>
                    <div style={{marginBottom:20}}><label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:10}}>FULL NAME</label><input name="name" placeholder="Ex: Mohammad Asim" value={addForm.name} onChange={onAddFormChange}/></div>
                    <div className="filter-bar" style={{marginBottom:20}}>
-                     <div><label style={{fontSize:10, color:S.textMuted, fontWeight:900, display:"block", marginBottom:8}}>PROGRAM</label><select name="program" value={addForm.program} onChange={onAddFormChange}><option value="BTech">BTech</option><option value="BCA">BCA</option></select></div>
+                     <div><label style={{fontSize:10, color:S.textMuted, fontWeight:900, display:"block", marginBottom:8}}>PROGRAM</label><select name="program" value={addForm.program} onChange={onAddFormChange}><option value="BTech">BTech</option><option value="BCA">BCA</option><option value="MCA">MCA</option><option value="Diploma">Diploma</option></select></div>
                      <div><label style={{fontSize:10, color:S.textMuted, fontWeight:900, display:"block", marginBottom:8}}>YEAR</label><select name="year" value={addForm.year} onChange={onAddFormChange}><option value={2}>2</option><option value={3}>3</option></select></div>
                      <div><label style={{fontSize:10, color:S.textMuted, fontWeight:900, display:"block", marginBottom:8}}>SECTION</label><select name="section" value={addForm.section} onChange={onAddFormChange}><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div>
                    </div>
