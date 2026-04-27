@@ -372,7 +372,7 @@ const StudentCard = React.memo(({ student, onVerify, onReset, isMaster }) => (
         {student.payment_status !== 'Paid' && <span style={{fontSize:10, background:S.errorBg, color:S.error, padding:"2px 8px", borderRadius:6, fontWeight:900, border:`1px solid ${S.error}33`}}>UNPAID</span>}
       </div>
       <div style={{fontSize:14, color:S.textMuted, marginTop:6, fontWeight:500}}>
-        {student.roll_no} • {student.program} {student.year}yr {student.section && `Sec ${student.section}`}
+        {(student.roll_no || student.stud_id || "No ID")} • {student.program} {student.year}yr {student.section && `Sec ${student.section}`}
       </div>
       {student.is_verified && <div style={{color:S.success, marginTop:8, fontSize:12, fontWeight:800}}>✦ CLEARED ({student.verified_by.split('(')[1]?.replace(')','')})</div>}
     </div>
@@ -427,12 +427,12 @@ export default function FarewellApp() {
   const [admins, setAdmins] = useState([]);
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [loaded, setLoaded] = useState(false);
-  const [form, setForm] = useState({name:"", rollNo:""});
+  const [form, setForm] = useState({name:"", rollNo:"", studId:"", useFallback: false});
   const [result, setResult] = useState(null);
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
   const [adminTab, setAdminTab] = useState("database");
-  const [addForm, setAddForm] = useState({roll_no:"", name:"", program:"BTech", year:2, section:"A", payment_status:"Paid"});
+  const [addForm, setAddForm] = useState({roll_no:"", stud_id:"", name:"", program:"BTech", year:2, section:"A", payment_status:"Paid"});
   const [dbMsg, setDbMsg] = useState("");
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
@@ -501,7 +501,9 @@ export default function FarewellApp() {
     const rInput = search.toUpperCase();
     return students
       .filter(s => {
-        const matchesSearch = (s.name || "").toLowerCase().includes(sInput) || (s.roll_no || "").toUpperCase().includes(rInput);
+        const matchesSearch = (s.name || "").toLowerCase().includes(sInput) || 
+                             (s.roll_no || "").toUpperCase().includes(rInput) ||
+                             (s.stud_id || "").toUpperCase().includes(rInput);
         const matchesProgram = filters.program === "All" || 
           (s.program && s.program.toString().trim().toLowerCase() === filters.program.toLowerCase());
         const matchesYear = filters.year === "All" || 
@@ -551,12 +553,25 @@ export default function FarewellApp() {
   }, [pinInput, handleAdminLogin]);
 
   const handleCheckEligibility = useCallback(async () => {
-    if (!form.name || !form.rollNo) { alert("Please complete your details"); return; }
+    const { name, rollNo, studId, useFallback } = form;
+    if (!name || (!useFallback && !rollNo) || (useFallback && !studId)) { 
+      alert("Please complete your details"); 
+      return; 
+    }
+    
     setView("loading");
     await new Promise(r => setTimeout(r, 800));
-    const rInput = form.rollNo.trim().toUpperCase();
-    const nInput = form.name.trim().toUpperCase();
-    const student = students.find(s => s.roll_no.toUpperCase() === rInput && s.name.toUpperCase() === nInput);
+    
+    const nInput = name.trim().toUpperCase();
+    let student;
+    
+    if (!useFallback) {
+      const rInput = rollNo.trim().toUpperCase();
+      student = students.find(s => (s.roll_no || "").toUpperCase() === rInput && (s.name || "").toUpperCase() === nInput);
+    } else {
+      const sIdInput = studId.trim().toUpperCase();
+      student = students.find(s => (s.stud_id || "").toUpperCase() === sIdInput && (s.name || "").toUpperCase() === nInput);
+    }
 
     if (!student) setResult({ status: "not_found" });
     else if (student.is_verified) setResult({ status: "already_entered", student });
@@ -593,12 +608,12 @@ export default function FarewellApp() {
   }, []);
 
   const handleAddStudent = useCallback(async () => {
-    if (!addForm.roll_no || !addForm.name) { setDbMsg("⚠️ Required fields missing"); return; }
+    if ((!addForm.roll_no && !addForm.stud_id) || !addForm.name) { setDbMsg("⚠️ Required fields missing"); return; }
     const { error } = await supabase.from('students').insert([addForm]);
     if (error) setDbMsg(`❌ ${error.message}`);
     else {
       setDbMsg("✨ Added to list!");
-      setAddForm({roll_no:"", name:"", program:"BTech", year:2, section:"A", payment_status:"Paid"});
+      setAddForm({roll_no:"", stud_id:"", name:"", program:"BTech", year:2, section:"A", payment_status:"Paid"});
     }
     setTimeout(() => setDbMsg(""), 4000);
   }, [addForm]);
@@ -617,6 +632,8 @@ export default function FarewellApp() {
 
   const onNameChange = useCallback(e => setForm(f => ({...f, name: e.target.value})), []);
   const onRollChange = useCallback(e => setForm(f => ({...f, rollNo: e.target.value})), []);
+  const onStudIdChange = useCallback(e => setForm(f => ({...f, studId: e.target.value})), []);
+  const toggleFallback = useCallback(() => setForm(f => ({...f, useFallback: !f.useFallback})), []);
   const onPinChange = useCallback(e => { setPinInput(e.target.value); setPinError(false); }, []);
   const onSearchChange = useCallback(e => setSearch(e.target.value), []);
   const onFilterChange = useCallback(e => {
@@ -673,13 +690,24 @@ export default function FarewellApp() {
             <BorderBeam />
             <div style={{marginBottom:32}}>
               <label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:14, letterSpacing:"0.18em"}}>GUEST FULL NAME</label>
-              <input placeholder="Mohammad Asim" value={form.name} onChange={onNameChange}/>
+              <input placeholder="Mohammad Arshiyan" value={form.name} onChange={onNameChange}/>
             </div>
-            <div style={{marginBottom:56}}>
-              <label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:14, letterSpacing:"0.18em"}}>ROLL NUMBER</label>
-              <input placeholder="2420101..." value={form.rollNo} onChange={onRollChange}/>
+            <div style={{marginBottom:32}}>
+              {!form.useFallback ? (
+                <>
+                  <label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:14, letterSpacing:"0.18em"}}>ROLL NUMBER</label>
+                  <input placeholder="2420101..." value={form.rollNo} onChange={onRollChange}/>
+                  <button onClick={toggleFallback} style={{background:"none", border:"none", color:S.gold, marginTop:12, cursor:"pointer", fontSize:11, fontWeight:800, padding:0, letterSpacing:"0.05em"}}>Don’t have Roll Number?</button>
+                </>
+              ) : (
+                <>
+                  <label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:14, letterSpacing:"0.18em"}}>COLLEGE ID (UUID)</label>
+                  <input placeholder="Ex: UU2100..." value={form.studId} onChange={onStudIdChange}/>
+                  <button onClick={toggleFallback} style={{background:"none", border:"none", color:S.gold, marginTop:12, cursor:"pointer", fontSize:11, fontWeight:800, padding:0, letterSpacing:"0.05em"}}>Have Roll Number? Go back</button>
+                </>
+              )}
             </div>
-            <button className="shine-btn" onClick={handleCheckEligibility}>Verify Eligibility ✦</button>
+            <button className="shine-btn" style={{marginTop:24}} onClick={handleCheckEligibility}>Verify Eligibility ✦</button>
           </div>
           <button onClick={() => setView("adminLogin")} style={{display:"block", width:"100%", background:"none", border:"none", color:S.textDim, marginTop:56, cursor:"pointer", fontSize:11, letterSpacing:"0.35em", fontWeight:800, transition:"color 0.3s"}}>🛡️ SECURE GATEWAY ACCESS</button>
         </div>
@@ -708,7 +736,7 @@ export default function FarewellApp() {
               <div style={{fontSize:13, color:S.gold, letterSpacing:"0.3em", fontWeight:900, marginBottom:14}}>GUEST RECOGNIZED</div>
               <div style={{fontSize:32, fontWeight:800, color:S.text, textTransform:"uppercase", wordBreak:"break-all"}}>{result.student.name}</div>
               <div style={{fontSize:16, color:S.textMuted, marginTop:12, fontWeight:500}}>
-                {result.student.roll_no} • {result.student.program} {result.student.year}yr {result.student.section && `Sec ${result.student.section}`}
+                {(result.student.roll_no || result.student.stud_id)} • {result.student.program} {result.student.year}yr {result.student.section && `Sec ${result.student.section}`}
               </div>
             </div>
           )}
@@ -718,7 +746,7 @@ export default function FarewellApp() {
               {result.status === "eligible" ? "IDENTITY CLEARANCE: Your digital invitation has been authenticated. Please proceed to the checkpoint and present this screen for final entry logging." : 
                result.status === "already_entered" ? `SECURITY ALERT: This invitation was already used for entry at ${new Date(result.student.verified_at).toLocaleTimeString()} via ${result.student.verified_by.split('(')[1]?.replace(')','') || 'Main Gate'}. Duplicate entry is prohibited.` :
                result.status === "not_found" ? "ARCHIVE MISMATCH: Your credentials do not exist in the guest directory. Please verify your Roll Number or visit the Registration Desk." :
-               "INVITATION SUSPENDED: Your digital clearance is on hold due to pending registration formalities. Please resolve this at the Accounts Terminal."}
+               "INVITATION SUSPENDED: Your digital clearance is on hold due to pending payment. Please resolve this at the Accounts Terminal."}
             </p>
           </div>
           <button className="shine-btn" onClick={()=>setView("form")} style={{maxWidth:320, margin:"0 auto"}}>Return to Entry</button>
@@ -847,8 +875,11 @@ export default function FarewellApp() {
               <div key="add" className="tab-transition" style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", paddingBottom:40}}>
                 <div className="glass-card" style={{padding:"40px 32px", maxWidth:600, width:"100%"}}>
                    <BorderBeam />
-                   <div style={{marginBottom:20}}><label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:10}}>ROLL NUMBER</label><input name="roll_no" placeholder="Ex: 24201" value={addForm.roll_no} onChange={onAddFormChange}/></div>
-                   <div style={{marginBottom:20}}><label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:10}}>FULL NAME</label><input name="name" placeholder="Ex: Mohammad Asim" value={addForm.name} onChange={onAddFormChange}/></div>
+                   <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:20}}>
+                     <div><label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:10}}>ROLL NUMBER</label><input name="roll_no" placeholder="Ex: 24201" value={addForm.roll_no} onChange={onAddFormChange}/></div>
+                     <div><label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:10}}>COLLEGE ID (UUID)</label><input name="stud_id" placeholder="Ex: UU2100" value={addForm.stud_id} onChange={onAddFormChange}/></div>
+                   </div>
+                   <div style={{marginBottom:20}}><label style={{fontSize:11, color:S.gold, fontWeight:900, display:"block", marginBottom:10}}>FULL NAME</label><input name="name" placeholder="Ex: Mohammad Arshiyan" value={addForm.name} onChange={onAddFormChange}/></div>
                    <div className="filter-bar" style={{marginBottom:20}}>
                      <div><label style={{fontSize:10, color:S.textMuted, fontWeight:900, display:"block", marginBottom:8}}>PROGRAM</label><select name="program" value={addForm.program} onChange={onAddFormChange}><option value="BTech">BTech</option><option value="BCA">BCA</option><option value="MCA">MCA</option><option value="Diploma">Diploma</option></select></div>
                      <div><label style={{fontSize:10, color:S.textMuted, fontWeight:900, display:"block", marginBottom:8}}>YEAR</label><select name="year" value={addForm.year} onChange={onAddFormChange}><option value={2}>2</option><option value={3}>3</option></select></div>
